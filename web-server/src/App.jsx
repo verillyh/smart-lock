@@ -5,12 +5,14 @@ import ImageUploading from 'react-images-uploading'
 // TODO: Improve UI
 
 function App() {
+  const serverUrl = "http://192.168.20.11:3000"
   const [unlock, setUnlock] = useState(false)
+  const [personName, setPersonName] = useState("Vincent")
   const [images, setImages] = useState([])
   const socketRef = useRef(null)
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:3000")
+    socketRef.current = io(serverUrl)
     socketRef.current.on("connect", () => {
       console.log("Connected to server")
     })
@@ -34,10 +36,11 @@ function App() {
 
     // For each image file
     data.forEach((entry) => {
-      // Append file as form data
+      // Populate form data
+      formData.append("personName", personName)
       formData.append("image", entry.file)
       // Upload image to server iteratively
-      fetch("http://localhost:3000/upload", {
+      fetch(serverUrl + "/upload", {
         method: "POST",
         body: formData,
       })
