@@ -37,15 +37,13 @@ class FaceRecognizer:
         )
         self.picam2.configure(config)
 
-
-
     def _detect_faces_from_frame(self, frame):
         # Preprocess frame
         resized = cv2.resize(frame, (0, 0), fx=1/self.scaler, fy=1/self.scaler)
 
         # Get face encodings from current frame
-        locations = face_recognition.face_locations(rgb_frame)
-        encodings = face_recognition.face_encodings(rgb_frame, locations, model='large')
+        locations = face_recognition.face_locations(resized)
+        encodings = face_recognition.face_encodings(resized, locations, model='large')
         # Loop over each face's encoding
         for encoding in encodings:
             # Check if the face matches any known faces
@@ -59,7 +57,8 @@ class FaceRecognizer:
                 print(f"[INFO] Authorized face detected: {name}")
                 self.detected = True
                 # Send unlocking signal to arduino
-                self.serial_transport.write("unlock".encode()) 
+                print("[INFO] Unlocking door...")
+                self.serial_transport.write(b"unlock\n") 
                 return
 
     # Process frames in a background thread
@@ -102,6 +101,7 @@ class FaceRecognizer:
         # Stop recording
         print("Stopping recording...")
         self.picam2.stop_recording()
+        return video_out_path
 
     
     def train_model(self, imagePaths):    

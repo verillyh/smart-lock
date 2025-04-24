@@ -5,7 +5,7 @@ import ImageUploading from 'react-images-uploading'
 // TODO: Improve UI
 
 function App() {
-  const serverUrl = "http://192.168.20.11:3000"
+  const serverUrl = "http://192.168.67.226:3000"
   const [unlock, setUnlock] = useState(false)
   const [personName, setPersonName] = useState("Vincent")
   const [images, setImages] = useState([])
@@ -89,6 +89,8 @@ function App() {
                     </div>
                   ))}
                 </div>
+                <label htmlFor="name">Person name</label>
+                <input type="text" name='name' id='name' value={personName} onChange={e => setPersonName(e.target.value)} className='border' />
                 <button className='button bg-neutral-400 rounded p-1' onClick={() => submitPictures(imageList)}>Submit Pictures</button>
               </div>
             )}
