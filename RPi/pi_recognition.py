@@ -93,7 +93,7 @@ class FaceRecognizer:
                     person_id = self.cursor.fetchone()[0]
                     # Log access to the database
                     self.cursor.execute("INSERT INTO access_log (video_file, person_id, access_method) VALUES (%s, %s, 'face')", 
-                                        (f"video_{self.timestamp}.mp4", person_id)
+                                        (f"videos/video_{self.timestamp}.mp4", person_id)
                                         )
                     self.db.commit()
                     print("[INFO] Access logged successfully.")
