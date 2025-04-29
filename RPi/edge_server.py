@@ -109,7 +109,7 @@ def save_wav(samples, timestamp):
 def stitch_audio_video(timestamp):
     video = f"record_{timestamp}.mp4"
     audio = f"audio_{timestamp}.wav"
-    output = f"video_{timestamp}.mp4"
+    output = f"videos/video_{timestamp}.mp4"
 
     command = [
         "ffmpeg",
