@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 import subprocess
 import pi_recognition
+import database
 
 # Constants
 SAMPLE_RATE = 8000
@@ -18,6 +19,7 @@ TOTAL_SAMPLES = SAMPLE_RATE * DURATION_SECONDS * 2
 # Globals
 fc = None
 serial_writer = None
+db, cursor = database.setup()
 
 # ---------- Serial Thread ----------
 class SerialReaderThread(threading.Thread):
@@ -36,7 +38,7 @@ class SerialReaderThread(threading.Thread):
     def run(self):
         global serial_writer, fc
         serial_writer = self.ser  # Save for socket.io access
-        fc = pi_recognition.FaceRecognizer(serial_writer)
+        fc = pi_recognition.FaceRecognizer(serial_writer, db, cursor)
 
         # While serial is alive...
         while self.running:
@@ -57,7 +59,7 @@ class SerialReaderThread(threading.Thread):
                 print("[INFO] Motion detected")
                 self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 # Start video recording and face recognition
-                threading.Thread(target=fc.recognize_faces, kwargs={"video_out_path": f"video_{self.timestamp}.mp4"}, daemon=True).start()
+                threading.Thread(target=fc.recognize_faces, kwargs={"timestamp": self.timestamp}, daemon=True).start()
                 # Start audio recording
                 self.ser.write(b"Audio START\n")
                 # Clear buffer and set state to AUDIO
@@ -99,15 +101,15 @@ def preprocess_audio(data):
     return (samples / 1023) * 2 - 1
 
 def save_wav(samples, timestamp):
-    file_name = f"recording_{timestamp}.wav"
+    file_name = f"audio_{timestamp}.wav"
     audio_array = np.array(samples[:TOTAL_SAMPLES], dtype=np.float32)
     write(file_name, SAMPLE_RATE, audio_array)
 
 
 def stitch_audio_video(timestamp):
-    video = f"video_{timestamp}.mp4"
-    audio = f"recording_{timestamp}.wav"
-    output = f"video_stitch_{timestamp}.mp4"
+    video = f"record_{timestamp}.mp4"
+    audio = f"audio_{timestamp}.wav"
+    output = f"video_{timestamp}.mp4"
 
     command = [
         "ffmpeg",
@@ -116,7 +118,6 @@ def stitch_audio_video(timestamp):
         "-i", audio,
         "-c:v", "copy",
         "-c:a", "aac",
-        "-strict", "experimental", 
         "-shortest",
         "-hide_banner",
         "-loglevel", "panic",
@@ -126,8 +127,8 @@ def stitch_audio_video(timestamp):
     try:
         print("[INFO] Stitching audio and video...")
         subprocess.run(command, check=True)
-        subprocess.run(["rm", f"video_{timestamp}.mp4"])
-        subprocess.run(["rm", f"recording_{timestamp}.wav"])
+        subprocess.run(["rm", f"record_{timestamp}.mp4"])
+        subprocess.run(["rm", f"audio_{timestamp}.wav"])
         print(f"[INFO] Stitching complete. Saved to {output}")
     except Exception as e:
         print(e) 
@@ -163,7 +164,7 @@ async def upload_file(request):
     print(f"Saved image for {person_name}: {image_field.filename}")
     print("Training model...")
     # Train model with the whole uploads directory
-    fc.train_model("uploads")   
+    fc.process_faces(f"uploads/{person_name}/{image_field.filename}")   
     print("Model trained")
     return web.Response(text="File upload received")
 
@@ -196,12 +197,20 @@ async def connect(sid, environ):
 async def on_unlock(sid, unlock):
     global serial_writer
     if serial_writer:
-        command = b"unlock" if unlock else b"lock"
+        command = b"unlock\n" if unlock else b"lock\n"
         try:
             serial_writer.write(command)
-            print(f"Sent: {command}")
+            print(f"[INFO] Unlock command sent: {command.decode()}")
         except Exception as e:
             print(f"[Serial Write Error] {e}")
+
+        try: 
+            print("[INFO] Inserting access log into database...")
+            cursor.execute("INSERT INTO access_log (access_method) VALUES ('remote')")
+            db.commit()
+        except Exception as e:
+            print(f"[ERROR] Failed to log access: {e}")
+            db.rollback()
     else:
         print("Serial not ready")
 

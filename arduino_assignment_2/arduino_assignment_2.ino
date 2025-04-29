@@ -14,6 +14,7 @@ const unsigned long motionCooldown = 12000;
 unsigned long unlockTime = 0;
 bool unlocking = false;
 
+
 bool motionDetected = false;
 bool recordAudio = false;
 
@@ -63,6 +64,9 @@ void loop() {
     }
     else if (input == "Audio STOP") {
       recordAudio = false;
+    }
+    else {
+      unlock();
     }
   }
 
