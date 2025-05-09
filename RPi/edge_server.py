@@ -9,7 +9,7 @@ from datetime import datetime
 import os
 import subprocess
 import pi_recognition
-import database
+import database 
 
 # Constants
 SAMPLE_RATE = 8000
@@ -37,7 +37,8 @@ class SerialReaderThread(threading.Thread):
 
     def run(self):
         global serial_writer, fc
-        serial_writer = self.ser  # Save for socket.io access
+        # Save for socket.io access
+        serial_writer = self.ser  
         fc = pi_recognition.FaceRecognizer(serial_writer, db, cursor)
 
         # While serial is alive...
@@ -105,7 +106,6 @@ def save_wav(samples, timestamp):
     audio_array = np.array(samples[:TOTAL_SAMPLES], dtype=np.float32)
     write(file_name, SAMPLE_RATE, audio_array)
 
-
 def stitch_audio_video(timestamp):
     video = f"record_{timestamp}.mp4"
     audio = f"audio_{timestamp}.wav"
@@ -126,12 +126,42 @@ def stitch_audio_video(timestamp):
 
     try:
         print("[INFO] Stitching audio and video...")
+        # Produce video with audio
         subprocess.run(command, check=True)
+        # Remove video file
         subprocess.run(["rm", f"record_{timestamp}.mp4"])
+        # Remove audio file
         subprocess.run(["rm", f"audio_{timestamp}.wav"])
         print(f"[INFO] Stitching complete. Saved to {output}")
     except Exception as e:
         print(e) 
+
+def get_access_logs():
+    try:
+        cursor.execute("""
+                    SELECT 
+                        DATE(access_time) AS access_date,
+                        SUM(access_method = 'face') AS face_count,
+                        SUM(access_method = 'remote') AS remote_count
+                    FROM access_log
+                    GROUP BY access_date
+                    ORDER BY access_date;                       
+                """)
+        results = cursor.fetchall()
+        logs = []
+        for result in results:
+            access_date = result[0].strftime('%d/%m/%Y')
+            
+            logs.append({
+                "date": access_date,
+                "face_count": int(result[1]),
+                "web_count": int(result[2])
+            })
+        
+        return logs
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch access logs: {e}")
+        return []        
 
 # ---------- Route Functions ----------
 async def upload_file(request):
@@ -170,7 +200,6 @@ async def upload_file(request):
 
 
 # ---------- Web Server Setup ----------
-# Use aio since there's a lot of I/0 operations
 app = web.Application()
 # Setup CORS
 cors = aiohttp_cors.setup(app, defaults={
@@ -213,6 +242,12 @@ async def on_unlock(sid, unlock):
             db.rollback()
     else:
         print("Serial not ready")
+
+@sio.on("refresh")
+async def refresh(sid):
+    logs = get_access_logs()
+    await sio.emit("access_logs", logs)
+    print(f"[INFO] Access logs sent to {sid}")
 
 
 # ---------- Startup Serial Thread ----------

@@ -10,7 +10,6 @@ from picamera2 import Picamera2
 from picamera2.encoders import H264Encoder
 from picamera2.outputs import FfmpegOutput
 
-# TODO: Add access log status. Add new entry regardless if a face was detected or not.
 
 class FaceRecognizer:
     def __init__(self, serial_transport, db, cursor, cv_scaler=5):

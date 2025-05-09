@@ -1,7 +1,7 @@
 #include <Servo.h>
-#include <TimerOne.h>
 
 #define servoPin 9
+#define ledPin 4
 #define motionSensorPin 2
 #define microphonePin A5
 #define lockAngle 30
@@ -23,6 +23,7 @@ Servo servo;
 void setup() {
   // Set motion sensor
   pinMode(motionSensorPin, INPUT);
+  pinMode(ledPin, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(motionSensorPin), motionDetectedFunc, RISING);
   // Set serial
   Serial.begin(230400);
@@ -35,6 +36,7 @@ void loop() {
   // Unlock for only 3 seconds, then lock again
   if (unlocking && millis() - unlockTime >= 3000) {
     lock();
+    digitalWrite(ledPin, LOW);
     unlocking = false;
   }
 
@@ -55,9 +57,6 @@ void loop() {
     if (input == "unlock") {
       unlock();
     } 
-    else if (input == "lock") {
-      lock();
-    }
     else if (input == "Audio START") {
       recordAudio = true;
       Serial.write("<SMART_LOCK_AUDIO>");
@@ -79,6 +78,7 @@ void loop() {
 
 void unlock() {
   servo.write(unlockAngle);
+  digitalWrite(ledPin, HIGH);
   unlockTime = millis();
   unlocking = true;
 }

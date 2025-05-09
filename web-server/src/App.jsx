@@ -1,26 +1,58 @@
 import { useRef, useState, useEffect } from 'react'
 import { io } from "socket.io-client"
+import Chart from "./components/Chart"
 import ImageUploading from 'react-images-uploading'
 
 // TODO: Improve UI
 
 function App() {
-  const serverUrl = "http://192.168.67.226:3000"
+  const serverUrl = "http://192.168.20.11:3000"
   const [unlock, setUnlock] = useState(false)
+  const [chartData, setChartData] = useState([])
   const [personName, setPersonName] = useState("Vincent")
   const [images, setImages] = useState([])
   const socketRef = useRef(null)
 
   useEffect(() => {
     socketRef.current = io(serverUrl)
+    
     socketRef.current.on("connect", () => {
       console.log("Connected to server")
     })
 
+    socketRef.current.on("access_logs", (data) => {
+      console.log("New access logs entry:", data)
+
+      refreshData(data)
+    })
+    // Show data on graph
+    socketRef.current.emit("refresh")
+    
     return () => {
       socketRef.current.disconnect()
     }
   }, [])
+
+
+  // Functions
+  const refreshData = data => {
+    let face_count = []
+    let web_count = []
+    
+    data.forEach(entry => {
+      face_count.push({
+        "y": entry.face_count,
+        "label": entry.date
+      })
+      web_count.push({
+        "y": entry.web_count,
+        "label": entry.date
+      })
+
+    })
+
+    setChartData({"faceUnlocks": face_count, "webUnlocks": web_count})
+  }
 
   const handleUnlock = (state) => {
     setUnlock(state)
@@ -55,8 +87,13 @@ function App() {
         console.error("Error:", error)
       })
     })
-
   }
+
+  const onRefresh = () => {
+    if (socketRef.current) {
+      socketRef.current.emit("refresh")
+    }
+  } 
 
   return (
     <>
@@ -80,7 +117,7 @@ function App() {
             }) => (
               <div className='flex flex-col items-center'>
                 <button className='button bg-neutral-400 rounded p-1' onClick={onImageUpload}>Upload Image</button>
-                <button className='button' onClick={onImageRemoveAll}>Remove All Images</button>
+                <button className='button bg-neutral-400 rounded p-1 mt-3' onClick={onRefresh}>Refresh data</button>
                 <div className='flex flex-row gap-4'>
                   {imageList.map((image, index) => (
                     <div key={index} className='relative'>
@@ -97,7 +134,10 @@ function App() {
           </ImageUploading>
         <div className='flex flex-row justify-center items-center gap-4'>
           <button onClick={() => handleUnlock(true)} type="button" className='button bg-green-500'>Unlock</button>
-          <button onClick={() => handleUnlock(false)} type="button" className='button bg-red-500'>Lock</button>
+        </div>
+
+        <div className='flex flex-row'>
+          <Chart data={chartData} />
         </div>
       </main>
     </>

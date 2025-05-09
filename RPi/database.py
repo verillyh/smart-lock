@@ -2,7 +2,7 @@ import mysql.connector
 
 def setup():
     db = mysql.connector.connect(
-        host="192.168.67.226",
+        host="localhost",
         user="server",
         password="server",
     )
