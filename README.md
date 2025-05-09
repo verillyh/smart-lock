@@ -21,3 +21,7 @@ To run the web server, perform the following commands:
 
 To run the Raspberry Pi server, transfer all the files inside RPi and execute:
 `python edge_server.py`
+
+Before running the program, make sure all hardware is connected and the Arduino file is uploaded to the Arduino.
+
+The Arduino code can be found in the arduino_assignment_2 folder.
